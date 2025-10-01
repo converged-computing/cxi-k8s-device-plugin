@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/HewlettPackard/cxi-k8s-device-plugin/pkg/hpecxi"
 	"github.com/HewlettPackard/cxi-k8s-device-plugin/pkg/plugin"
 
 	"github.com/kubevirt/device-plugin-manager/pkg/dpm"
@@ -29,20 +30,40 @@ func main() {
 		flag.PrintDefaults()
 	}
 	var pulse int
-	devicePrefix := "hsi"
+	var libfabricPath, libcxiPath, pciName, netDevicePrefix, cxiDriverRoot string
 	flag.IntVar(&pulse, "pulse", 0, "time between health check polling in seconds.  Set to 0 to disable.")
-	flag.StringVar(&devicePrefix, "prefix", "hsi", "Device prefix to search for in net")
+	flag.StringVar(&netDevicePrefix, "net-device", hpecxi.NetDevicePrefix, "Device prefix to search for in net (e.g, hsi)")
+	flag.StringVar(&libfabricPath, "libfabric", hpecxi.LibfabricPath, "Directory path to lib64 with libfabric")
+	flag.StringVar(&libcxiPath, "libcxi", hpecxi.LibcxiPath, "Directory path to lib64 with libfabric")
+	flag.StringVar(&pciName, "pci-name", hpecxi.PCIName, "PCI device name (e.g, pci:cxi_ss1")
+	flag.StringVar(&cxiDriverRoot, "cxi-driver-root", hpecxi.CxiDriverRoot, "/sys/modules/<x>/devices root")
 	flag.Parse()
 
 	for _, v := range versions {
 		klog.Infof("%s", v)
 	}
 
-	l := plugin.HPECXILister{
-		ResUpdateChan: make(chan dpm.PluginNameList),
-		Heartbeat:     make(chan bool),
+	// Configuration for paths, naming
+	cfg := &hpecxi.HPECXIConfig{
+		CxiDriverRoot:   cxiDriverRoot,
+		LibfabricPath:   libfabricPath,
+		LibcxiPath:      libcxiPath,
+		NetDevicePrefix: netDevicePrefix,
+		PCIName:         pciName,
 	}
+
+	// Create a new plugin manager for the lister
+	mgr := hpecxi.NewManager(cfg)
+	l := plugin.NewHPECXILister(mgr)
 	manager := dpm.NewManager(&l)
+
+	// Tell user the configuration found
+	klog.Info("🌊 Configuration:")
+	klog.Infof("    Net Device Prefix: %s\n", cfg.NetDevicePrefix)
+	klog.Infof("    CXI Driver Root:   %s\n", cfg.CxiDriverRoot)
+	klog.Infof("    Libfabric Path:    %s\n", cfg.LibfabricPath)
+	klog.Infof("    Libcxi Path:       %s\n", cfg.LibcxiPath)
+	klog.Infof("    PCI Name:          %s\n", cfg.PCIName)
 
 	if pulse > 0 {
 		go func() {

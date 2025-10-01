@@ -11,19 +11,6 @@ import (
 
 const HPEvendorID string = "0x17db"
 
-var cxiDriverRoot = "/sys/module/cxi_ss1/drivers"
-
-// In the future, we may want to include lib paths into the helm.
-var LibPaths = map[string]string{
-	"libfabric":   "/opt/cray/lib64",
-	"libcxi":      "/usr/lib64",
-	"libcxiutils": "/usr/lib64",
-}
-
-var EnvVars = map[string]string{
-	"LD_LIBRARY_PATH": "/opt/cray/lib64:/usr/lib64",
-}
-
 func findLibs(libName, libPath string) ([]string, error) {
 	var files []string
 
@@ -46,46 +33,43 @@ func findLibs(libName, libPath string) ([]string, error) {
 	return files, nil
 }
 
-func GetLibs() ([]string, error) {
-	var libs []string
+// Support for initial function using hard coded defaults
+// These can be further exposed if needed. Right now this is just for testing.
+func GetDevices() map[string]int {
 
-	for libname, libpath := range LibPaths {
-		newLibs, err := findLibs(libname, libpath)
-		if err != nil {
-			return nil, err
-		}
-		libs = append(libs, newLibs...)
+	// Note that these were the initial hard coded paths
+	cfg := &HPECXIConfig{
+		CxiDriverRoot:   "/sys/module/cxi_core/drivers",
+		LibfabricPath:   "/opt/cray/lib64",
+		LibcxiPath:      LibcxiPath,
+		NetDevicePrefix: "hsn",
+		PCIName:         "pci:cxi_core",
 	}
 
-	return libs, nil
+	// Create a new plugin manager for the lister
+	mgr := NewManager(cfg)
+	return mgr.GetDevices()
 }
 
 // GetHPECXIs return a map of HPE Cassini on a node identified by the part of the pci address
 // This may be changed to use cxilib calls instead of sysfs.
-func GetHPECXIs() map[string]int {
-	if _, err := os.Stat(cxiDriverRoot); err != nil {
+func (m *Manager) GetDevices() map[string]int {
+	if _, err := os.Stat(m.config.CxiDriverRoot); err != nil {
 		klog.Warningf("HPE CXI driver unavailable: %s", err)
 		return make(map[string]int)
 	}
-
-	cxiRegex := filepath.Join(cxiDriverRoot, "pci:cxi_ss1/[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]:*")
-	klog.Info(cxiRegex)
-	matches, _ := filepath.Glob(cxiRegex)
-
-	klog.Info("Found matches:")
+	regex := m.GetCXIDriverRegex()
+	matches, _ := filepath.Glob(regex)
 	klog.Info(matches)
 	devices := make(map[string]int)
 
 	for _, path := range matches {
-		// This is a directory with "net"
-		// /sys/module/cxi_ss1/drivers/pci:cxi_ss1/0000:01:00.0/
-
 		klog.Info(path)
 		devPaths, _ := filepath.Glob(path + "/net/*")
 
 		for _, devPath := range devPaths {
 			name := filepath.Base(devPath)
-			if name[0:3] == "hsi" {
+			if name[0:3] == m.config.NetDevicePrefix {
 				nic_id, _ := strconv.Atoi(name[len(name)-1:])
 				devices[name] = nic_id
 			}

@@ -5,7 +5,7 @@ import (
 )
 
 func hasHPECXI(t *testing.T) bool {
-	devices := GetHPECXIs()
+	devices := GetDevices()
 	if len(devices) <= 0 {
 		return false
 	}

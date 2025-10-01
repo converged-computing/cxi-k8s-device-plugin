@@ -1,6 +1,7 @@
 SOURCES := $(wildcard *.go cmd/*/*.go pkg/*/*.go)
-
 VERSION=$(shell git describe --tags --dirty 2>/dev/null)
+DOCKER_IMAGE ?= "ghcr.io/converged-computing/cxi-k8s-device-plugin"
+DOCKER_TAG ?= "latest"
 
 ifeq ($(VERSION),)
 	VERSION := "0.0.1-beta"
@@ -15,6 +16,14 @@ build: $(SOURCES)
 
 tidy:
 	go mod tidy
+
+.PHONY: docker-build
+docker-build:
+	 docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
+
+.PHONY: docker-push
+docker-push:
+	 docker push $(DOCKER_IMAGE):$(DOCKER_TAG) 
 
 .PHONY: clean
 clean:

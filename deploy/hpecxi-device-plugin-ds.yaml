@@ -23,7 +23,7 @@ spec:
         value: "true"
         effect: NoSchedule
       containers:
-      - image: ghcr.io/hewlettpackard/cxi-k8s-device-plugin:0.0.1-beta
+      - image: ghcr.io/converged-computing/cxi-k8s-device-plugin:10
         imagePullPolicy: Always
         name: hpecxi-dp-cntr
         securityContext:
