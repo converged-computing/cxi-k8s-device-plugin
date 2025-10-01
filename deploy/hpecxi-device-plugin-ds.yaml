@@ -12,12 +12,18 @@ spec:
       labels:
         name: hpecxi-dp-ds
     spec:
+      nodeSelector:
+        "cray.nnf.node": "true"
       priorityClassName: system-node-critical
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
+      - key: "cray.nnf.node"
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
       containers:
-      - image: ghcr.io/hewlettpackard/cxi-k8s-device-plugin:0.0.1-beta
+      - image: ghcr.io/converged-computing/cxi-k8s-device-plugin:10
         imagePullPolicy: Always
         name: hpecxi-dp-cntr
         securityContext:
@@ -46,3 +52,4 @@ spec:
         - name: libfabric
           hostPath:
             path: /usr/lib64
+

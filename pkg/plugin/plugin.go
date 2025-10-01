@@ -10,7 +10,6 @@ import (
 	"syscall"
 
 	"github.com/HewlettPackard/cxi-k8s-device-plugin/pkg/hpecxi"
-
 	"github.com/kubevirt/device-plugin-manager/pkg/dpm"
 	"golang.org/x/net/context"
 	"k8s.io/klog/v2"
@@ -24,6 +23,8 @@ type HPECXIPlugin struct {
 	CXIs      map[string]int
 	Heartbeat chan bool
 	signal    chan os.Signal
+
+	manager *hpecxi.Manager
 }
 
 // Lister serves as an interface between imlementation and Manager machinery. User passes
@@ -33,6 +34,16 @@ type HPECXILister struct {
 	ResUpdateChan chan dpm.PluginNameList
 	Heartbeat     chan bool
 	Signal        chan os.Signal
+
+	Manager *hpecxi.Manager
+}
+
+func NewHPECXILister(manager *hpecxi.Manager) HPECXILister {
+	return HPECXILister{
+		ResUpdateChan: make(chan dpm.PluginNameList),
+		Heartbeat:     make(chan bool),
+		Manager:       manager,
+	}
 }
 
 // Start is an optional interface that could be implemented by plugin.
@@ -107,7 +118,9 @@ func (p *HPECXIPlugin) PreStartContainer(ctx context.Context, r *pluginapi.PreSt
 // Whenever a Device state change or a Device disappears, ListAndWatch
 // returns the new list
 func (p *HPECXIPlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.DevicePlugin_ListAndWatchServer) error {
-	p.CXIs = hpecxi.GetHPECXIs()
+
+	// Discover devices with the manager...
+	p.CXIs = p.manager.GetDevices()
 	klog.Infof("Found %d HPE Slingshot NICs", len(p.CXIs))
 
 	devs := make([]*pluginapi.Device, len(p.CXIs))
@@ -162,7 +175,7 @@ func (p *HPECXIPlugin) Allocate(ctx context.Context, r *pluginapi.AllocateReques
 	var mount *pluginapi.Mount
 
 	car = pluginapi.ContainerAllocateResponse{}
-	libpaths, err := hpecxi.GetLibs()
+	libpaths, err := p.manager.GetLibs()
 
 	if err != nil {
 		return nil, err
@@ -191,7 +204,7 @@ func (p *HPECXIPlugin) Allocate(ctx context.Context, r *pluginapi.AllocateReques
 		}
 
 	}
-	car.Envs = hpecxi.EnvVars
+	car.Envs = p.manager.EnvVars()
 	response.ContainerResponses = append(response.ContainerResponses, &car)
 
 	return &response, nil
@@ -227,5 +240,6 @@ func (l *HPECXILister) Discover(pluginListCh chan dpm.PluginNameList) {
 func (l *HPECXILister) NewPlugin(resourceLastName string) dpm.PluginInterface {
 	return &HPECXIPlugin{
 		Heartbeat: l.Heartbeat,
+		manager:   l.Manager,
 	}
 }
