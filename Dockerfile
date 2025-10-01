@@ -7,7 +7,7 @@ WORKDIR /go/src/github.com/HPE/cxi-k8s-device-plugin
 RUN make build
 RUN cp bin/cxi-k8s-device-plugin /go/bin/
 
-FROM alpine:latest
-WORKDIR /root/
-COPY --from=0 /go/bin/cxi-k8s-device-plugin .
-CMD ["./cxi-k8s-device-plugin", "-logtostderr=true", "-stderrthreshold=INFO", "-v=5"]
+# FROM alpine:latest
+# WORKDIR /root/
+# COPY --from=0 /go/bin/cxi-k8s-device-plugin .
+CMD ["/go/bin/cxi-k8s-device-plugin", "-logtostderr=true", "-stderrthreshold=INFO", "-v=5"]

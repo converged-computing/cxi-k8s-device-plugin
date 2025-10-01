@@ -60,4 +60,12 @@ kubectl apply \
     -f ./deploy/hpecxi-device-plugin-ds.yaml
 ```
 
+## Pod Resources
+
+```yaml
+resources:
+  requests: 
+    beta.hpe.com/cxi: 1
+```
+
 > #### Make sure the IPAM definitions in the `./deploy/NetworkAttachmentDefinition` are follwoing your cluster network requirements. 

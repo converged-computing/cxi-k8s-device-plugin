@@ -11,6 +11,8 @@ import (
 
 const HPEvendorID string = "0x17db"
 
+var cxiDriverRoot = "/sys/module/cxi_ss1/drivers"
+
 // In the future, we may want to include lib paths into the helm.
 var LibPaths = map[string]string{
 	"libfabric":   "/opt/cray/lib64",
@@ -61,22 +63,29 @@ func GetLibs() ([]string, error) {
 // GetHPECXIs return a map of HPE Cassini on a node identified by the part of the pci address
 // This may be changed to use cxilib calls instead of sysfs.
 func GetHPECXIs() map[string]int {
-	if _, err := os.Stat("/sys/module/cxi_core/drivers/"); err != nil {
+	if _, err := os.Stat(cxiDriverRoot); err != nil {
 		klog.Warningf("HPE CXI driver unavailable: %s", err)
 		return make(map[string]int)
 	}
 
-	matches, _ := filepath.Glob("/sys/module/cxi_core/drivers/pci:cxi_core/[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]:*")
+	cxiRegex := filepath.Join(cxiDriverRoot, "pci:cxi_ss1/[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]:*")
+	klog.Info(cxiRegex)
+	matches, _ := filepath.Glob(cxiRegex)
 
+	klog.Info("Found matches:")
+	klog.Info(matches)
 	devices := make(map[string]int)
 
 	for _, path := range matches {
+		// This is a directory with "net"
+		// /sys/module/cxi_ss1/drivers/pci:cxi_ss1/0000:01:00.0/
+
 		klog.Info(path)
 		devPaths, _ := filepath.Glob(path + "/net/*")
 
 		for _, devPath := range devPaths {
 			name := filepath.Base(devPath)
-			if name[0:3] == "hsn" {
+			if name[0:3] == "hsi" {
 				nic_id, _ := strconv.Atoi(name[len(name)-1:])
 				devices[name] = nic_id
 			}

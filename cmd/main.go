@@ -29,7 +29,9 @@ func main() {
 		flag.PrintDefaults()
 	}
 	var pulse int
+	devicePrefix := "hsi"
 	flag.IntVar(&pulse, "pulse", 0, "time between health check polling in seconds.  Set to 0 to disable.")
+	flag.StringVar(&devicePrefix, "prefix", "hsi", "Device prefix to search for in net")
 	flag.Parse()
 
 	for _, v := range versions {
